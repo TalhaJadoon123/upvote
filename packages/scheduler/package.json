@@ -1,0 +1,30 @@
+{
+  "name": "@upvote/scheduler",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Posting scheduler: best-time slots, rate limits, anti-spam guardrails, BullMQ + Redis.",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "publishConfig": {
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@upvote/core": "workspace:*",
+    "zod": "^4.6.5"
+  },
+  "optionalDependencies": {
+    "bullmq": "^5.34.4",
+    "ioredis": "^5.4.2"
+  }
+}
