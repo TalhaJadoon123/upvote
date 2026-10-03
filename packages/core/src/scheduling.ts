@@ -87,10 +87,14 @@ export function predictBestTimes(
   const { weights: baseWeights, reason } = hourWeightsFor(subreddit);
   const isSmall = (subreddit.subscribers ?? 0) < 20_000;
 
-  const hourWeights = baseWeights.map((w, i) => {
+  const hourWeights = baseWeights.map((prior, i) => {
     const learned = options.learnedHourWeights?.[i];
-    // Blend rather than replace: priors keep us sane with thin personal data.
-    return learned === undefined ? w : w * 0.55 + clamp(learned) * 0.45;
+    // The dead zone suppresses the *prior* only. If the founder's own history
+    // says 3am works for them, we believe them - they have the real data.
+    const gated = i >= 2 && i <= 5 ? prior * 0.25 : prior;
+    if (learned === undefined) return gated;
+    // Learned data, when supplied, is the stronger signal.
+    return gated * 0.4 + clamp(learned) * 0.6;
   });
 
   const slots: TimeSlot[] = [];
@@ -102,7 +106,7 @@ export function predictBestTimes(
     let dayWeight = DAY_PRIOR[dayOfWeek] ?? 1;
     if (isSmall && (dayOfWeek === 0 || dayOfWeek === 6)) dayWeight += SMALL_SUB_SHIFT.weekendBoost;
     const learnedDay = options.learnedDayWeights?.[dayOfWeek];
-    if (learnedDay !== undefined) dayWeight = dayWeight * 0.55 + clamp(learnedDay) * 0.45;
+    if (learnedDay !== undefined) dayWeight = dayWeight * 0.4 + clamp(learnedDay) * 0.6;
 
     for (let hour = 0; hour < 24; hour++) {
       const candidate = new Date(
@@ -119,9 +123,7 @@ export function predictBestTimes(
       if (leadMs < 30 * 60 * 1000) continue;
 
       const hourWeight = hourWeights[hour] ?? 0;
-      // Never recommend posting at 4am just because the curve is flat there.
-      const safetyFloor = hour >= 2 && hour <= 5 ? 0.25 : 1;
-      const score = clamp(hourWeight * dayWeight * safetyFloor);
+      const score = clamp(hourWeight * dayWeight);
 
       slots.push({
         at: candidate.toISOString(),
