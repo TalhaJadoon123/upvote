@@ -326,12 +326,19 @@ const HARD_PART_FALLBACK = [
  * prefer the founder's own words and fall back to tags only when the moment has
  * no usable prose.
  */
+const LEADING_VERBS = new Set([
+  'shipped', 'built', 'released', 'fixed', 'added', 'removed', 'rewrote', 'refactored',
+  'launched', 'wrote', 'made', 'switched', 'migrated', 'updated', 'improved', 'tried',
+]);
+
 function subjectOf(moment: ShippingMoment): string {
   const source = `${moment.whatChanged} ${moment.title}`;
   const words = tokenize(source).filter(
     (w) => w.length > 3 && !STOP_WORDS.has(w) && !moment.tags.includes(w),
   );
-  const uniqueWords = [...new Set(words)];
+  // "shipped v2.4.0 the ingest retry" reads badly, so drop the leading verb.
+  const withoutVerb = words[0] && LEADING_VERBS.has(words[0]) ? words.slice(1) : words;
+  const uniqueWords = [...new Set(withoutVerb)];
   if (uniqueWords.length >= 2) return uniqueWords.slice(0, 3).join(' ');
   if (uniqueWords.length === 1) return uniqueWords[0]!;
   if (moment.tags.length > 0) return moment.tags.slice(0, 2).join('/');

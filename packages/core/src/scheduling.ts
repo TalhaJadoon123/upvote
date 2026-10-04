@@ -168,14 +168,17 @@ export function compact(n: number): string {
   return String(n);
 }
 
-/** Convert a UTC instant to the founder's local time, with UTC alongside. */
+/** Convert a UTC instant to the founder's local time, with the date and UTC alongside. */
 export function formatInUserTimezone(iso: string, offsetMinutes = 0): string {
   const date = new Date(iso);
   const shifted = new Date(date.getTime() + offsetMinutes * 60_000);
-  const local = `${describeHour(shifted.getUTCHours())} local`;
+  // Include the day: three slots often land on different days at the same hour.
+  const day = shifted.toISOString().slice(5, 10);
+  const local = `${day} ${describeHour(shifted.getUTCHours())}`;
   const utc = `${describeHour(date.getUTCHours())} UTC`;
-  const zone = offsetMinutes === 0 ? 'UTC' : offsetMinutes > 0 ? `UTC+${Math.round(offsetMinutes / 60)}` : `UTC${Math.round(offsetMinutes / 60)}`;
-  return `${local} (${utc}, ${zone})`;
+  const zone =
+    offsetMinutes === 0 ? 'UTC' : offsetMinutes > 0 ? `UTC+${Math.round(offsetMinutes / 60)}` : `UTC${Math.round(offsetMinutes / 60)}`;
+  return `${local} local (${utc}, ${zone})`;
 }
 
 /**

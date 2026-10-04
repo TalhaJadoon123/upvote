@@ -327,6 +327,43 @@ export function adjustProfile(
 }
 
 /**
+ * A neutral profile for the zero-sample case.
+ *
+ * Used only by the onboarding preview, where refusing to show anything would
+ * mean a new user sees an error instead of the product. It is deliberately
+ * unopinionated (mid-formality, no emoji, plain prose) and is flagged by
+ * `sampleCount: 0` so the UI can say the voice is not trained yet.
+ */
+export function bootstrapProfile(userId: string): VoiceProfile {
+  const { vector, variance } = aggregateStyle([
+    { text: 'here is what happened and what i changed to fix it.', score: 1 },
+  ]);
+  return VoiceProfileSchema.parse({
+    id: `vp_bootstrap_${slugify(userId, 16)}`,
+    userId,
+    version: 0,
+    sampleCount: 0,
+    vector,
+    variance,
+    signaturePhrases: [],
+    favoriteWords: [],
+    bannedWords: [],
+    emojiFavorites: [],
+    openers: [],
+    closers: [],
+    embedding: [],
+    settings: {
+      formality: 0.5,
+      humor: 0.25,
+      emojiRate: 0.5,
+      profanityAllowed: false,
+      ctaStyle: 'soft',
+      bannedPhrases: [],
+    },
+  });
+}
+
+/**
  * Merge a team member's profile into a shared "team voice" profile.
  * Numeric dimensions are averaged; lexical sets are unioned by frequency.
  */

@@ -5,7 +5,7 @@
  * check. A draft that violates a hard rule is never "top ranked" — it is marked
  * non-compliant so the dashboard can show exactly what needs fixing.
  */
-import { DEFAULT_AVOID_CATEGORIES, inferTopics } from './subreddit.js';
+import { computeActivityScore, DEFAULT_AVOID_CATEGORIES, inferTopics } from './subreddit.js';
 import type { SubredditProfile, SubredditSuggestion } from './types.js';
 import { clamp, round, unique } from './utils.js';
 
@@ -375,26 +375,32 @@ export function defaultSubredditPool(): SubredditProfile[] {
     { name: 'smallbusiness', category: 'indiehackers', subscribers: 90_000, allowLinks: true, allowSelfPromo: false, requiresFlair: false },
   ];
 
-  return fixtures.map((f) => ({
-    name: f.name,
-    displayName: f.name,
-    subscribers: f.subscribers,
-    activeUsers: null,
-    activity: null,
-    upvoteRatio: 0.96,
-    postsPerDay: null,
-    over18: false,
-    restricted: false,
-    quarantined: false,
-    description: `A community for ${f.category}`,
-    sidebar: '',
-    rules: [],
-    flairs: [],
-    activityByHourUtc: [],
-    topics: [f.category],
-    allowSelfPromo: f.allowSelfPromo,
-    allowLinks: f.allowLinks,
-    requiresFlair: f.requiresFlair,
-    fetchedAt: new Date().toISOString(),
-  } satisfies SubredditProfile));
+  return fixtures.map((f) => {
+    const profile: SubredditProfile = {
+      name: f.name,
+      displayName: f.name,
+      subscribers: f.subscribers,
+      activeUsers: null,
+      activity: null,
+      upvoteRatio: 0.96,
+      postsPerDay: null,
+      over18: false,
+      restricted: false,
+      quarantined: false,
+      description: `A community for ${f.category}`,
+      sidebar: '',
+      rules: [] as SubredditProfile['rules'],
+      flairs: [] as SubredditProfile['flairs'],
+      activityByHourUtc: [] as number[],
+      topics: [f.category],
+      allowSelfPromo: f.allowSelfPromo,
+      allowLinks: f.allowLinks,
+      requiresFlair: f.requiresFlair,
+      fetchedAt: new Date().toISOString(),
+    };
+    // Derive the activity score, exactly as a live profile would have one, so
+    // the offline pool ranks the same way the real matcher does.
+    profile.activity = computeActivityScore(profile);
+    return profile;
+  });
 }

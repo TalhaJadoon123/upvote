@@ -24,7 +24,14 @@ import {
   type ShippingMoment,
   type VoiceSample,
 } from '@upvote/core';
-import { describeProfile as describeVoice, trainVoiceProfile, balanceSamples, deduplicateSamples, samplesFromRedditListing } from '@upvote/voice';
+import {
+  describeProfile as describeVoice,
+  trainVoiceProfile,
+  balanceSamples,
+  bootstrapProfile,
+  deduplicateSamples,
+  samplesFromRedditListing,
+} from '@upvote/voice';
 import { GitHubClient, inferTags, momentFromWebhook } from '@upvote/gh';
 import { pickFlairId, RedditClient } from '@upvote/reddit';
 import {
@@ -1011,26 +1018,45 @@ export function cmdGitHub(args: string[], ctx: CommandContext): number {
 
 /** The 60-second onboarding wow moment: connect GitHub, see five drafts. */
 export async function cmdOnboard(args: string[], ctx: CommandContext): Promise<number> {
-  const text = args.filter((a) => !a.startsWith('--')).join(' ').trim()
-    ?? 'shipped a rewrite of the ingest layer. the retry loop no longer caches its own failures. lesson: boring beats clever.';
-
   outHeader(ctx, 'Welcome to Upvote - ship code, we write the post');
   ctx.out(ui.dim('  Step 1/3  voice profile'));
-  const rc = await cmdVoiceTrain(['--file=' + (args.find((a) => a.startsWith('--file='))?.split('=')[1] ?? 'samples.md')], ctx).catch(() => 1);
+
+  // The founder's own description of what they shipped is a writing sample.
+  // Using it means a brand-new user with no Reddit connection still gets drafts.
+  const momentText = args.filter((a) => !a.startsWith('--')).join(' ').trim();
+  const fileArg = args.find((a) => a.startsWith('--file='))?.split('=')[1];
+  if (momentText) {
+    ctx.state.samples = [
+      ...ctx.state.samples,
+      { id: `moment_${Date.now()}`, source: 'reddit_post', text: momentText, score: 1 },
+    ];
+  }
+
+  await cmdVoiceTrain(fileArg ? [`--file=${fileArg}`] : [], ctx).catch(() => 1);
   if (!ctx.state.voiceProfile) {
-    ctx.out(ui.info('No samples yet - drafting with a neutral voice so you can see the shape of it.'));
+    // Nothing to learn from yet: generate against a neutral profile so the user
+    // sees the shape of the product, and say plainly that the voice is untrained.
+    ctx.state.voiceProfile = bootstrapProfile(ctx.config.userId);
+    ctx.out(ui.warn('No past writing found yet - drafts below use a neutral voice.'));
+    ctx.out(ui.dim('  Run `upvote connect reddit` or paste writing to make them sound like you.'));
   }
 
   ctx.out('');
   ctx.out(ui.dim('  Step 2/3  first drafts'));
-  const rc2 = await cmdDraft([text], ctx);
+  const rc2 = await cmdDraft(
+    [
+      momentText ||
+        'shipped a rewrite of the ingest layer. the retry loop no longer caches its own failures. lesson: boring beats clever.',
+    ],
+    ctx,
+  );
   ctx.out('');
   ctx.out(ui.dim('  Step 3/3  next'));
   ctx.out(ui.bullet('upvote connect reddit   - install the Reddit app so posting works'));
   ctx.out(ui.bullet('upvote config product --name=YourProduct --url=https://yourproduct.com'));
   ctx.out(ui.bullet('upvote approve <id>     - schedule it at the best hour'));
   ctx.out(ui.bullet('upvote post <id>        - publish immediately'));
-  return rc2 === 0 || rc === 0 ? 0 : 1;
+  return rc2;
 }
 
 export { spawnSync };
