@@ -107,6 +107,7 @@ function secondPersonRate(tokens: readonly string[], charCount: number): number 
 function formalityScore(text: string, sentences: readonly string[]): number {
   const lower = text.toLowerCase();
   const chars = Math.max(text.length, 1);
+  const words = tokenize(text).length;
 
   const contractionHits = CONTRACTIONS.reduce((acc, c) => acc + countMatches(lower, new RegExp(`\\b${c}\\b`, 'g')), 0);
   const contractionDensity = clamp(contractionHits / (chars / 500));
@@ -126,14 +127,16 @@ function formalityScore(text: string, sentences: readonly string[]): number {
   const avgSent = mean(sentences.map((s) => tokenize(s).length));
   const honorifics = countMatches(lower, /\b(sir|madam|kindly|please find|hereby|respectfully)\b/gi);
 
-  // Start from formal and subtract casual signals.
-  let score = 0.62;
-  score -= clamp(contractionDensity / 12) * 0.28;
-  score -= clamp(slangHits / 6) * 0.12;
-  score -= clamp(profanityHits / 3) * 0.1;
-  score += clamp(formalHits / 4) * 0.16;
-  score += clamp(honorifics / 3) * 0.1;
-  score += clamp((avgSent - 12) / 25) * 0.18;
+  // Start from a neutral, everyday-voice midpoint and move from there.
+  let score = 0.5;
+  score -= clamp(contractionDensity / 12) * 0.3;
+  score -= clamp(slangHits / 4) * 0.16;
+  score -= clamp(profanityHits / 3) * 0.12;
+  score += clamp(formalHits / 4) * 0.2;
+  score += clamp(honorifics / 3) * 0.12;
+  score += clamp((avgSent - 12) / 25) * 0.2;
+  // Absent contractions is itself a mild formality signal.
+  if (contractionHits === 0 && words > 20) score += 0.06;
   return clamp(score);
 }
 
@@ -232,33 +235,24 @@ export function aggregateStyle(
   const variance: Record<string, number> = {};
 
   for (const key of keys) {
+    // Store raw measurements. The scorer decides how to compare them (it applies
+    // its own log transform to unbounded dimensions); transforming here too
+    // would double-count and make the profile unreadable.
     let acc = 0;
     for (let i = 0; i < extractions.length; i++) {
-      const value = extractions[i]!.vector[key];
-      // Normalize count-like dimensions so a 2000-word blog post doesn't dominate.
-      const normalized = COUNT_DIMENSIONS.has(key) ? Math.log1p(Math.max(value, 0)) : value;
-      acc += normalized * (weights[i] ?? 1);
+      acc += extractions[i]!.vector[key] * (weights[i] ?? 1);
     }
     const avg = acc / totalWeight;
     (vector as Record<string, number>)[key] = round2(avg);
 
     if (extractions.length > 1) {
-      const dev = extractions.map((e) => {
-        const v = e.vector[key];
-        return (COUNT_DIMENSIONS.has(key) ? Math.log1p(Math.max(v, 0)) : v) - avg;
-      });
+      const dev = extractions.map((e) => e.vector[key] - avg);
       variance[key] = round2(mean(dev.map((d) => d * d)));
     }
   }
 
   return { vector, variance };
 }
-
-const COUNT_DIMENSIONS = new Set<keyof StyleVector>([
-  'wordsPerPost',
-  'typeTokenRatio',
-  'rareWordRate',
-]);
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;

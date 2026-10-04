@@ -10,7 +10,7 @@
  * founder's formality / humor / emoji targets and pulls in characteristic words.
  */
 import type { DraftStyle, ShippingMoment, VoiceProfile } from './types.js';
-import { seededRandom, pick, slugify, tokenize } from './utils.js';
+import { seededRandom, pick, slugify, tokenize, STOP_WORDS } from './utils.js';
 
 /* ------------------------------------------------------------------ */
 /* Voice conditioning                                                   */
@@ -87,16 +87,22 @@ function maybeEmoji(knobs: VoiceKnobs, rand: () => number, pool: string[] = ['�
   return ` ${pick(pool, rand)}`;
 }
 
-/** Introduce 1-2 characteristic words so the draft shares vocabulary with the corpus. */
+/**
+ * Introduce the founder's characteristic vocabulary so the draft shares wording
+ * with the corpus rather than merely the same register. Always fires when the
+ * profile has a usable word and the draft is long enough to read naturally.
+ */
 function voiceFlavor(text: string, profile: VoiceProfile, rand: () => number): string {
-  const words = profile.favoriteWords.filter((w) => w.length > 3 && !text.includes(w));
-  if (words.length === 0) return text;
-  const word = pick(words, rand);
+  const candidates = profile.favoriteWords.filter((w) => w.length > 3 && !text.includes(w));
+  const word = candidates.length > 0 ? pick(candidates, rand) : null;
+  if (!word) return text;
+
   const frames = [
     `long story short, the ${word} part is where it fell apart`,
     `the ${word} side of this took way longer than i expected`,
     `if you only take one thing: the ${word} work is 80% of the time`,
     `what i keep calling ${word}`,
+    `the whole thing comes down to ${word}, honestly`,
   ];
   return `${text}\n\n${pick(frames, rand)}.`;
 }
@@ -313,11 +319,42 @@ const HARD_PART_FALLBACK = [
   'the decision I would take back',
 ];
 
+/**
+ * A human-readable subject for the moment.
+ *
+ * Tags alone make for nonsense sentences ("I finally built python postgres"), so
+ * prefer the founder's own words and fall back to tags only when the moment has
+ * no usable prose.
+ */
 function subjectOf(moment: ShippingMoment): string {
-  const tagList = moment.tags.filter((t) => t.length > 2).slice(0, 3);
-  if (tagList.length > 0) return tagList.join('/');
-  const words = tokenize(moment.whatChanged || moment.title).filter((w) => w.length > 4);
-  return words.slice(0, 3).join(' ') || moment.title;
+  const source = `${moment.whatChanged} ${moment.title}`;
+  const words = tokenize(source).filter(
+    (w) => w.length > 3 && !STOP_WORDS.has(w) && !moment.tags.includes(w),
+  );
+  const uniqueWords = [...new Set(words)];
+  if (uniqueWords.length >= 2) return uniqueWords.slice(0, 3).join(' ');
+  if (uniqueWords.length === 1) return uniqueWords[0]!;
+  if (moment.tags.length > 0) return moment.tags.slice(0, 2).join('/');
+  return moment.title;
+}
+
+/**
+ * Shorten a fragment for a title without cutting mid-clause.
+ * Prefers a sentence or clause boundary, then a word boundary.
+ */
+function cutAtWord(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const slice = text.slice(0, max);
+  const clause = Math.max(
+    slice.lastIndexOf('. '),
+    slice.lastIndexOf(', '),
+    slice.lastIndexOf('; '),
+    slice.lastIndexOf(' - '),
+  );
+  if (clause > max * 0.45) return slice.slice(0, clause).trim();
+  const space = slice.lastIndexOf(' ');
+  const base = space > max * 0.5 ? slice.slice(0, space) : slice;
+  return base.replace(/[\s,;:.!?-]+$/, '');
 }
 
 function numberFromMoment(moment: ShippingMoment): string {
@@ -329,6 +366,14 @@ function numberFromMoment(moment: ShippingMoment): string {
 
 function cleanTitle(s: string): string {
   return s.replace(/\s{2,}/g, ' ').replace(/[[\]]/g, '').trim();
+}
+
+/** A Reddit title must be a complete thought, not a truncated clause. */
+function titleFrom(fragment: string, max = 80): string {
+  const cleaned = cleanTitle(cutAtWord(fragment.replace(/\s+/g, ' '), max));
+  return cleaned.endsWith('.') || cleaned.endsWith('?') || cleaned.endsWith('!')
+    ? cleaned
+    : `${cleaned}.`;
 }
 
 /**
@@ -367,8 +412,8 @@ export function renderDraft(context: RenderContext, style: DraftStyle): Rendered
       if (closing) paras.push(closing);
       titles = [
         `I built ${slugify(subjectOf(moment), 34).replace(/-/g, ' ')} — the part that broke me`,
-        `Show r/${context.subreddit ?? 'SideProject'}: ${what.slice(0, 60)}`,
-        `${what.slice(0, 70)}${maybeEmoji(knobs, rand, ['🚀'])}`,
+        `Show r/${context.subreddit ?? 'SideProject'}: ${cutAtWord(what, 56)}`,
+        `${titleFrom(what, 70)}${maybeEmoji(knobs, rand, ['🚀'])}`,
       ];
       firstComment = `stack: ${moment.tags.join(', ') || 'TS'}. biggest known limitation: still working on it. repo is in the post body.`;
       break;
@@ -391,7 +436,7 @@ export function renderDraft(context: RenderContext, style: DraftStyle): Rendered
       titles = [
         `The ${n} days I lost to ${slugify(subjectOf(moment), 28).replace(/-/g, ' ')}`,
         `I screwed this up. Here is what it cost me.`,
-        `${hardPart.slice(0, 62)} — the mistake I keep making`,
+        `${cutAtWord(hardPart, 60)} - the mistake I keep making`,
       ];
       firstComment = `if i had to redo this i would start with ${moment.tags[0] ?? 'the data model'}. happy to expand on anything.`;
       break;
@@ -408,7 +453,7 @@ export function renderDraft(context: RenderContext, style: DraftStyle): Rendered
       titles = [
         `How are you handling ${subjectOf(moment)} without it becoming a mess?`,
         `What is the cleanest way to do ${subjectOf(moment)}?`,
-        `${what.slice(0, 60)} — what am I missing?`,
+        `${cutAtWord(what, 56)} - what am I missing?`,
       ];
       firstComment = `for context: ${moment.tags.join(', ') || 'node + postgres'}. i have read the docs, i want to know how people actually run this in production.`;
       break;
@@ -460,7 +505,7 @@ export function renderDraft(context: RenderContext, style: DraftStyle): Rendered
     return { title: context.threadTitle ?? '', titleVariants: [], body, firstComment: '', flair };
   }
 
-  if (titles.length === 0) titles = [cleanTitle(what).slice(0, 90)];
+  if (titles.length === 0) titles = [titleFrom(what, 86)];
   return {
     title: cleanTitle(titles[0] ?? what),
     titleVariants: titles.slice(0, 3).map(cleanTitle),

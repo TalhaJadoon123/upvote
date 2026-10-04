@@ -16,8 +16,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "cli": "node --experimental-strip-types packages/cli/src/bin.ts",
-    "upvote": "node --experimental-strip-types packages/cli/src/bin.ts",
+    "cli": "tsx packages/cli/src/bin.ts",
+    "upvote": "tsx packages/cli/src/bin.ts",
     "prepare": "node -e \"console.log('')\""
   },
   "devDependencies": {

@@ -31,6 +31,11 @@ export interface ScoreOptions {
   threshold?: number;
   /** Reddit-native requirements (paragraph length, no link in first paragraph, etc.). */
   platformNative?: boolean;
+  /**
+   * The post shape. A question post is *supposed* to contain questions, so the
+   * question-rate dimension is exempt rather than fighting the style.
+   */
+  style?: 'show_and_tell' | 'story' | 'question' | 'data' | 'comment_reply';
 }
 
 const WEIGHTS = {
@@ -85,8 +90,12 @@ const TOLERANCE: Record<keyof StyleVector, number> = {
   certaintyRate: 1.6,
 };
 
-/** Dimensions where a big deviation is a much bigger deal than the rest. */
-const CRITICAL: (keyof StyleVector)[] = ['formality', 'avgSentenceWords', 'paragraphWords', 'typeTokenRatio'];
+/**
+ * Dimensions where a big deviation sinks the draft.
+ * type-token ratio is deliberately excluded: it scales with text length, so
+ * comparing a 60-word draft against a 40-word sample is noise, not signal.
+ */
+const CRITICAL: (keyof StyleVector)[] = ['formality', 'avgSentenceWords', 'paragraphWords'];
 
 /**
  * Score a candidate body against a trained voice profile.
@@ -106,15 +115,26 @@ export function scoreAuthenticity(
   const extraction = extractStyle(body);
   const actual = extraction.vector;
 
-  // Small corpora => noisier style estimates => loosen the gates.
-  const confidencePenalty = profile.sampleCount < 8 ? (8 - profile.sampleCount) * 0.9 : 0;
-  const scale = (tolerance: number) => tolerance * (1 + confidencePenalty / 100);
+  // A style that exists to ask questions cannot be penalised for asking them.
+  const exempt: Set<keyof StyleVector> =
+    options.style === 'question'
+      ? // A question post is *meant* to ask questions of the reader.
+        new Set<keyof StyleVector>(['questionRate', 'secondPersonRate'])
+      : new Set();
+
+  // Small corpora mean noisier style estimates, so widen the gates rather than
+  // pretending to know more than the sample supports. The effect is deliberately
+  // large below ~12 samples and disappears by ~40.
+  const shortfall = Math.max(0, 12 - profile.sampleCount);
+  const confidenceFactor = 1 + Math.min(1.2, shortfall * 0.12);
+  const scale = (tolerance: number) => tolerance * confidenceFactor;
 
   const dims = Object.keys(TOLERANCE) as (keyof StyleVector)[];
   const scores: number[] = [];
   const criticalScores: number[] = [];
 
   for (const dim of dims) {
+    if (exempt.has(dim)) continue;
     let targetValue = target[dim] ?? 0;
     let actualValue = actual[dim] ?? 0;
     if (dim === 'wordsPerPost') {
@@ -144,8 +164,10 @@ export function scoreAuthenticity(
   let vocabulary = 100;
   if (favorites.length > 0) {
     const hitCount = favorites.filter((w) => draftUniq.has(w)).length;
-    // Reward a few characteristic words; never require the whole list.
-    vocabulary = clamp(hitCount / Math.max(Math.min(favorites.length, 8) * 0.35, 1)) * 100;
+    // A post should carry a couple of the founder's own words - not all 40 of
+    // them. The curve is sub-linear so the first hits matter most.
+    const expected = Math.max(1, Math.min(favorites.length, 8) * 0.22);
+    vocabulary = clamp(Math.sqrt(hitCount / expected)) * 100;
     if (hitCount === 0) {
       vocabulary *= 0.75;
       notes.push('No characteristic vocabulary from the voice profile appears in the draft.');

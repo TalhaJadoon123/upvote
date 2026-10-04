@@ -131,6 +131,16 @@ export function summarizeAttribution(
   };
 }
 
+/** Total attributed revenue, in cents, for one post. */
+export function attributionRevenue(
+  signups: readonly SignupEvent[] | { signups: readonly SignupEvent[] },
+  postId: string,
+): number {
+  const events: readonly SignupEvent[] =
+    'signups' in signups ? signups.signups : signups;
+  return events.filter((s) => s.postId === postId).reduce((acc, s) => acc + (s.revenueCents ?? 0), 0);
+}
+
 /**
  * Attribute a Stripe event to a post via the client's metadata (`upv` / `upv_post`),
  * falling back to the most recent click so a signup that lost its cookie still lands.
