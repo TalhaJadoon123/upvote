@@ -7,6 +7,9 @@ import type { CommandContext } from '@upvote/cli';
 /** Point the CLI's state at a throwaway directory before anything imports it. */
 const tmpHome = fs.mkdtempSync(path.join(os.tmpdir(), 'upvote-cli-test-'));
 process.env.UPVOTE_HOME = tmpHome;
+// Tests must never reach a model provider, even when a key exists in the
+// environment: that turns a unit test into a billed network call.
+process.env.UPVOTE_OFFLINE = '1';
 
 const cli = await import('@upvote/cli');
 const {

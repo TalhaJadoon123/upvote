@@ -1,0 +1,118 @@
+import { NextRequest } from 'next/server';
+import { RedditClient } from '@upvote/reddit';
+import { and, eq } from 'drizzle-orm';
+import { db } from '@/db';
+import { connections, users } from '@/db/schema';
+import { decryptTokens, encryptTokens } from '@/lib/crypto';
+import { badRequest, handler, ok, serverError } from '@/lib/api';
+import { requireApiUser } from '@/lib/auth';
+
+export const dynamic = 'force-dynamic';
+
+/**
+ * Reddit OAuth: start the install, then exchange the code.
+ * The user's own account is the only account Upvote ever posts from.
+ */
+export async function GET(request: NextRequest) {
+  return handler(async () => {
+    const user = await requireApiUser();
+    const code = request.nextUrl.searchParams.get('code');
+    const state = request.nextUrl.searchParams.get('state');
+
+    if (!code) {
+      const client = new RedditClient({
+        clientId: process.env.REDDIT_CLIENT_ID ?? '',
+        clientSecret: process.env.REDDIT_CLIENT_SECRET ?? '',
+        redirectUri: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/auth/reddit/callback`,
+      });
+      const installState = state ?? `u:${user.id}`;
+      return Response.redirect(client.authorizeUrl(installState));
+    }
+
+    // Verify the state round-trips to this user before accepting the code.
+    if (state && !state.includes(user.id)) {
+      return badRequest('OAuth state mismatch. Start the connect flow again.');
+    }
+
+    const client = new RedditClient({
+      clientId: process.env.REDDIT_CLIENT_ID ?? '',
+      clientSecret: process.env.REDDIT_CLIENT_SECRET ?? '',
+      redirectUri: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/auth/reddit/callback`,
+    });
+
+    const tokens = await client.exchangeCode(code);
+    client.setTokens(tokens);
+    const me = await client.me();
+
+    await db
+      .insert(connections)
+      .values({
+        id: `conn_${user.id}_reddit`,
+        userId: user.id,
+        provider: 'reddit',
+        accessTokenEncrypted: encryptTokens({ accessToken: tokens.accessToken }),
+        refreshTokenEncrypted: encryptTokens({ refreshToken: tokens.refreshToken }),
+        accountName: me.name,
+        scopes: tokens.scope ?? '',
+        expiresAt: tokens.expiresIn ? new Date(Date.now() + tokens.expiresIn * 1000) : null,
+        accountAgeDays: Math.max(0, Math.floor((Date.now() - me.createdUtc * 1000) / 86_400_000)),
+      })
+      .onConflictDoUpdate({
+        target: connections.userId,
+        set: {
+          accessTokenEncrypted: encryptTokens({ accessToken: tokens.accessToken }),
+          refreshTokenEncrypted: encryptTokens({ refreshToken: tokens.refreshToken }),
+          accountName: me.name,
+          updatedAt: new Date(),
+        },
+      });
+
+    const redirect = new URL('/dashboard/settings', request.nextUrl.origin);
+    redirect.searchParams.set('connected', 'reddit');
+    return Response.redirect(redirect);
+  });
+}
+
+/** Load the founder's stored Reddit tokens for server-side calls. */
+export async function loadRedditConnection(userId: string) {
+  const [row] = await db
+    .select()
+    .from(connections)
+    .where(and(eq(connections.userId, userId), eq(connections.provider, 'reddit')))
+    .limit(1);
+  if (!row) return null;
+
+  const access = decryptTokens<{ accessToken: string }>(row.accessTokenEncrypted);
+  const refresh = row.refreshTokenEncrypted
+    ? decryptTokens<{ refreshToken: string }>(row.refreshTokenEncrypted)
+    : null;
+
+  return {
+    row,
+    tokens: {
+      accessToken: access.accessToken,
+      ...(refresh?.refreshToken ? { refreshToken: refresh.refreshToken } : {}),
+      obtainedAt: row.updatedAt.toISOString(),
+      ...(row.expiresAt ? { expiresIn: Math.max(60, Math.floor((row.expiresAt.getTime() - Date.now()) / 1000)) } : {}),
+    },
+  };
+}
+
+export async function POST(request: NextRequest) {
+  return handler(async () => {
+    const user = await requireApiUser();
+    const body = (await request.json().catch(() => ({}))) as { action?: string };
+    if (body.action !== 'disconnect') return badRequest('Unsupported action.');
+
+    await db
+      .delete(connections)
+      .where(and(eq(connections.userId, user.id), eq(connections.provider, 'reddit')));
+    return ok({ disconnected: true });
+  });
+}
+
+export async function DELETE() {
+  return serverError('Use POST with { action: "disconnect" }.');
+}
+
+export { users };

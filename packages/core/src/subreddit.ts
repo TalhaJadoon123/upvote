@@ -167,7 +167,7 @@ const RULE_PATTERNS: RulePattern[] = [
  * (No self promotion) both survive intact.
  */
 function ruleSentences(text: string): string[] {
-  const SENTENCE_BREAK = /(?<=[\p{L}\)\]\x22\x27])[.!?]+(?:\s+|$)/u;
+  const SENTENCE_BREAK = /(?<=[\p{L})\]\x22\x27])[.!?]+(?:\s+|$)/u;
   return text
     .split(/\n+/)
     .flatMap((line) => line.split(SENTENCE_BREAK))

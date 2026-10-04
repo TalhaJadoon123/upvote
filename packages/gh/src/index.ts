@@ -538,7 +538,7 @@ export function momentFromWebhook(
           repo,
           ...(parsed[parsed.length - 1]!.html_url ? { url: parsed[parsed.length - 1]!.html_url! } : {}),
           ...(parsed[0]!.author?.username || parsed[0]!.author?.name
-            ? { author: parsed[0]!.author?.username ?? parsed[0]!.author?.name! }
+            ? { author: parsed[0]!.author?.username ?? parsed[0]!.author?.name ?? 'unknown' }
             : {}),
           ...(parsed[0]!.timestamp ? { occurredAt: parsed[0]!.timestamp! } : {}),
           ...(stars !== undefined ? { stars } : {}),

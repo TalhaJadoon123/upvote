@@ -144,7 +144,7 @@ export function tokenize(text: string): string[] {
       .toLowerCase()
       // Strip URLs but keep a placeholder so link habits remain measurable.
       .replace(/https?:\/\/\S+/g, ' __url__ ')
-      .match(/[\p{L}\p{N}]+(?:['’\-][\p{L}\p{N}]+)*/gu) ?? []
+      .match(/[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*/gu) ?? []
   );
 }
 

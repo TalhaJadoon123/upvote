@@ -1,0 +1,53 @@
+# Upvote — local development stack.
+#
+# Only Postgres and Redis are required. Everything else (the CLI, generation,
+# the offline composer) runs with no external services at all.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: upvote-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-upvote}
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-postgres}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: upvote-redis
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes', '--save', '60', '1']
+    ports:
+      - '${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Optional: a local Postgres for the `upvote` product's own database only.
+  # Skip with: docker compose up postgres
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: upvote-mailpit
+    restart: unless-stopped
+    ports:
+      - '8025:8025'   # web UI
+      - '1025:1025'   # SMTP
+    profiles: ['mail']
+
+volumes:
+  postgres-data:
+  redis-data:

@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+  "lib": ["dom", "dom.iterable", "ES2023"],
+  "module": "ESNext",
+  "moduleResolution": "Bundler",
+  "jsx": "preserve",
+  "strict": true,
+  "noUncheckedIndexedAccess": true,
+  "allowJs": true,
+  "skipLibCheck": true,
+  "esModuleInterop": true,
+  "resolveJsonModule": true,
+  "isolatedModules": true,
+  "incremental": true,
+  "noEmit": true,
+  "plugins": [{ "name": "next" }],
+    "paths": {
+      "@/*": ["./src/*"],
+      "@upvote/core": ["../core/src/index.ts"],
+      "@upvote/voice": ["../voice/src/index.ts"],
+      "@upvote/gh": ["../gh/src/index.ts"],
+      "@upvote/reddit": ["../reddit/src/index.ts"],
+      "@upvote/scheduler": ["../scheduler/src/index.ts"],
+      "@upvote/analytics": ["../analytics/src/index.ts"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+  "exclude": ["node_modules"]
+}

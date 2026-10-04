@@ -1,7 +1,14 @@
 {
   "extends": "./tsconfig.base.json",
-  "include": ["packages/*/src/**/*.ts", "packages/*/tests/**/*.ts", "*.ts"],
-  "exclude": ["node_modules", "**/dist", "**/.next", "**/.turbo", "packages/docs/.next"],
+  "include": ["packages/core/src/**/*.ts", "packages/voice/src/**/*.ts", "packages/gh/src/**/*.ts", "packages/reddit/src/**/*.ts", "packages/scheduler/src/**/*.ts", "packages/analytics/src/**/*.ts", "packages/cli/src/**/*.ts", "packages/*/tests/**/*.ts", "*.ts"],
+  "exclude": [
+    "node_modules",
+    "**/dist",
+    "**/.next",
+    "**/.turbo",
+    "packages/web",
+    "packages/docs"
+  ],
   "compilerOptions": {
     "types": ["node"]
   }

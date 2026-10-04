@@ -1,0 +1,143 @@
+---
+title: CLI reference
+description: Every Upvote command, with the flags that matter.
+---
+
+## The short version
+
+```bash
+pnpm upvote onboard "shipped the ingest rewrite"
+pnpm upvote draft "fixed the retry cache"
+pnpm upvote list
+pnpm upvote approve d1_a2b3
+pnpm upvote post d1_a2b3
+```
+
+Everything below is available without any API keys. Add a model provider
+(`OPENAI_API_KEY`, `ANTHROPIC_API_KEY` or `OLLAMA_MODEL`) to raise draft quality;
+without one Upvote uses a deterministic offline composer.
+
+## Commands
+
+### `upvote onboard`
+
+Guided setup that produces five drafts in about a minute.
+
+```bash
+upvote onboard [--file=notes.md] "what you shipped"
+```
+
+### `upvote connect`
+
+```bash
+upvote connect github --token=ghp_xxx
+upvote connect reddit            # prints the install URL
+upvote connect reddit --code=PASTE
+```
+
+Posts always use the account you connect. Upvote has no shared account.
+
+### `upvote draft`
+
+```bash
+upvote draft "fixed the retry cache in my ingest layer" [--tags=python,postgres]
+```
+
+Generates up to five drafts, ranked by voice score. Styles that cannot clear the
+authenticity gate are reported as rejected rather than quietly dropped.
+
+### `upvote list` / `upvote show`
+
+```bash
+upvote list [draft|review|approved|scheduled|posted|failed]
+upvote show d1_a2b3
+```
+
+`show` prints the full per-dimension voice breakdown and the subreddit compliance
+check.
+
+### `upvote approve` / `upvote post`
+
+```bash
+upvote approve d1_a2b3 [--subreddit=webdev] [--now]
+upvote post d1_a2b3
+```
+
+`approve` runs every guardrail, then schedules at the subreddit's predicted peak.
+`post` re-checks the rules (sidebars change) and publishes, then prints the
+suggested first comment for you to paste yourself.
+
+### `upvote schedule`
+
+```bash
+upvote schedule          # fill the queue from approved drafts
+upvote schedule --tick   # publish anything due (call this every minute)
+```
+
+### `upvote metrics` / `upvote analyze`
+
+```bash
+upvote metrics   # refresh upvotes, comments, removals
+upvote analyze   # performance report plus what to change next week
+```
+
+### `upvote voice`
+
+```bash
+upvote voice train [--file=notes.md] [--limit=200] [--profanity]
+upvote voice show
+```
+
+### `upvote sub`
+
+```bash
+upvote sub webdev      # rules, size, activity, best hours
+upvote sub match       # where should this draft go?
+```
+
+### `upvote templates`
+
+The distribution library:
+
+| id | shape |
+| --- | --- |
+| `built_in_days` | "I built X in Y days" |
+| `show_subreddit` | "Show r/X: my side project" |
+| `quit_job` | "I quit my job to build X" |
+| `hit_mrr` | "We hit $1K MRR. Here's how." |
+| `mistakes` | "The 5 mistakes I made building X" |
+| `analyzed_n` | "I analyzed 100 X. Here's what I found." |
+
+### `upvote git`
+
+```bash
+upvote git watch            # what triggers a draft
+upvote git sync [path]      # read the local repo's git log
+```
+
+`git sync` needs no GitHub token at all.
+
+## Configuration
+
+State lives in `~/.upvote/` as plain JSON you can read and delete.
+
+```bash
+upvote config show
+upvote config reddit --client-id=ID --client-secret=SECRET
+upvote config product --name=Acme --url=https://acme.dev
+upvote config guardrails --max-per-day=2 --min-voice=90 --auto
+upvote config guardrails --block=netsec --manual
+upvote config watch --repo=acme/tool
+```
+
+## Guardrails
+
+These run before every post, even with auto-posting enabled:
+
+- max 3 posts per day
+- max 1 post per subreddit per week
+- blocklist of subreddits never to touch
+- 72-hour cooldown after a removal
+- minimum 85 voice score
+- manual approval by default
+- never post where you have never commented (optional, on by default)

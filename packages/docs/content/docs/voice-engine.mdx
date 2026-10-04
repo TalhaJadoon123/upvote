@@ -1,0 +1,71 @@
+---
+title: The voice engine
+description: How Upvote learns to sound like you, and why the 85 gate exists.
+---
+
+## The problem
+
+Ask any model to "write a Reddit post about my side project" and you get the same
+thing: *thrilled to share*, *game-changer*, *delve into*. Every founder can feel the
+fakery immediately. Reddit readers can too, and they downvote it.
+
+So the moat is not generation. It is **rejection**.
+
+## What gets measured
+
+Every sample you provide is reduced to a 29-dimension style vector:
+
+| group | dimensions |
+| --- | --- |
+| vocabulary | word length, type-token ratio, rare-word rate, words per post |
+| rhythm | sentence length, sentence variance, paragraph length |
+| punctuation | commas per sentence, question and exclamation rates, ellipses, em dashes, semicolons, parentheses |
+| register | formality, humor, profanity, contractions, hedges, certainties |
+| habits | emoji rate, ALL-CAPS ratio, lowercase ratio, first/second person, bullets, code blocks, links, headers |
+
+Plus the parts no vector captures: the phrases you actually say (*"the boring
+version first"*), the words you reach for, the emoji you use, how you open and how
+you close.
+
+Samples are weighted by engagement, so your *successful* writing dominates.
+
+## How a draft is scored
+
+Six weighted signals, then a critical-dimension multiplier:
+
+| signal | weight | what it catches |
+| --- | --- | --- |
+| style match | 24% | register, sentence length, paragraph rhythm |
+| vocabulary | 18% | whether your characteristic words appear |
+| rhythm | 16% | wall-of-text paragraphs and run-on sentences |
+| n-gram similarity | 16% | distance from your real corpus |
+| punctuation | 12% | exclamation points, em dashes, ellipses you never use |
+| platform-native | 14% | short paragraphs, no link in the first paragraph |
+| penalties | − | AI-tell phrases, banned words, emoji bursts |
+
+A draft below **85** is regenerated with the scorer's own objections fed back as
+instructions. After three failed attempts it is reported as rejected rather than
+queued — an obviously fake post costs more than no post.
+
+## Confidence matters
+
+A profile trained on four samples cannot support a hard threshold. With a small
+corpus the scorer widens its tolerances (up to 2.2x below ~5 samples) instead of
+pretending to know more than the data supports. The dashboard shows a quality score
+and says plainly when it needs more writing.
+
+## Swapping the model
+
+The voice engine is independent of the model. `ModelClient` is a two-method
+interface:
+
+```ts
+interface ModelClient {
+  name: string;
+  generate(system: string, user: string, options?: GenerateOptions): Promise<GenerateResult>;
+}
+```
+
+Built in: OpenAI-compatible endpoints (including Groq, Together, OpenRouter, vLLM
+and Ollama), Anthropic, a static client for tests, and the offline composer used
+when no key is configured. Swapping providers changes one environment variable.

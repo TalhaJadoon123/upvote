@@ -678,7 +678,6 @@ export async function cmdMetrics(_args: string[], ctx: CommandContext): Promise<
         revenueCents: store.signups.filter((s) => s.postId === post.id).reduce((a, s) => a + (s.revenueCents ?? 0), 0),
       });
       if (m.removed) {
-        post.postedAt = post.postedAt;
         ctx.out(ui.warn(`r/${post.subreddit} removed a post - cooldown active.`));
       }
       updated++;

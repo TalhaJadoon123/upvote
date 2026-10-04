@@ -224,8 +224,14 @@ export function createStaticClient(
  * Build a client from environment variables. Returns null when no provider is
  * configured, which tells the generator to fall back to the offline composer
  * instead of failing. This is why `upvote draft` works with zero setup.
+ *
+ * Set `UPVOTE_OFFLINE=1` to force the deterministic composer even when a key is
+ * present. Tests and air-gapped deployments rely on this: it is the only way to
+ * guarantee no network call is made.
  */
 export function clientFromEnv(env: NodeJS.ProcessEnv = process.env): ModelClient | null {
+  if (env.UPVOTE_OFFLINE === '1' || env.UPVOTE_OFFLINE === 'true') return null;
+
   const openaiKey = env.OPENAI_API_KEY ?? env.OPENCODE_API_KEY;
   const openaiModel = env.UPVOTE_MODEL ?? env.OPENCODE_MODEL ?? 'gpt-4o-mini';
   if (openaiKey) {

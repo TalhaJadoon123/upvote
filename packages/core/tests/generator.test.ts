@@ -3,6 +3,7 @@ import {
   aggregateStyle,
   buildSystemPrompt,
   buildUserPrompt,
+  clientFromEnv,
   createStaticClient,
   generateDraftSet,
   hashedEmbedding,
@@ -71,6 +72,23 @@ const MOMENT: ShippingMoment = {
   source: { repo: 'acme/ingest', commitCount: 11 },
   createdAt: '2026-01-05T10:00:00.000Z',
 };
+
+describe('clientFromEnv', () => {
+  it('returns null when no provider is configured', () => {
+    expect(clientFromEnv({} as NodeJS.ProcessEnv)).toBeNull();
+  });
+
+  it('respects UPVOTE_OFFLINE even when a key is present', () => {
+    // This is what keeps the test suite from making billed network calls.
+    expect(
+      clientFromEnv({ OPENAI_API_KEY: 'sk-real-key', UPVOTE_OFFLINE: '1' } as NodeJS.ProcessEnv),
+    ).toBeNull();
+  });
+
+  it('builds a client when a key is configured', () => {
+    expect(clientFromEnv({ OPENAI_API_KEY: 'sk-test' } as NodeJS.ProcessEnv)?.name).toContain('gpt');
+  });
+});
 
 describe('generateDraftSet', () => {
   it('produces one draft per style, each voice-scored', async () => {
