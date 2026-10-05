@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { RedditClient } from '@upvote/reddit';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
-import { connections, users } from '@/db/schema';
+import { connections } from '@/db/schema';
 import { decryptTokens, encryptTokens } from '@/lib/crypto';
 import { badRequest, handler, ok, serverError } from '@/lib/api';
 import { requireApiUser } from '@/lib/auth';
@@ -25,12 +25,13 @@ export async function GET(request: NextRequest) {
         clientSecret: process.env.REDDIT_CLIENT_SECRET ?? '',
         redirectUri: `${process.env.NEXT_PUBLIC_APP_URL ?? ''}/api/auth/reddit/callback`,
       });
-      const installState = state ?? `u:${user.id}`;
+      const installState = `upvote:${user.id}`;
       return Response.redirect(client.authorizeUrl(installState));
     }
 
-    // Verify the state round-trips to this user before accepting the code.
-    if (state && !state.includes(user.id)) {
+    // Bind the callback to the user who started the flow. Substring matching
+    // would let an attacker prepend text to a valid id, so this is exact.
+    if (state !== `upvote:${user.id}`) {
       return badRequest('OAuth state mismatch. Start the connect flow again.');
     }
 
@@ -114,5 +115,3 @@ export async function POST(request: NextRequest) {
 export async function DELETE() {
   return serverError('Use POST with { action: "disconnect" }.');
 }
-
-export { users };

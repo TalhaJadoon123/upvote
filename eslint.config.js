@@ -49,4 +49,18 @@ export default [
       '@typescript-eslint/no-explicit-any': 'warn',
     },
   },
+  {
+    // The desktop renderer is browser code; the scripts are build tooling.
+    files: ['packages/desktop/src/renderer/**/*.js', 'packages/desktop/scripts/**/*.mjs', 'tools/**/*.mjs'],
+    languageOptions: {
+      sourceType: 'module',
+      globals: { ...globals.node, ...globals.browser },
+    },
+    rules: { 'no-undef': 'off' },
+  },
+  {
+    // The sanitiser deliberately matches control characters to strip them.
+    files: ['packages/core/src/sanitize.ts'],
+    rules: { 'no-control-regex': 'off' },
+  },
 ];

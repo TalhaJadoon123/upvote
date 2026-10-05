@@ -1,9 +1,12 @@
 import { NextRequest } from 'next/server';
 import { and, eq } from 'drizzle-orm';
-import { claimItem, completeItem, failItem, type ScheduledItem } from '@upvote/scheduler';
+import { failItem, type ScheduledItem } from '@upvote/scheduler';
+import { safeErrorMessage } from '@upvote/core';
 import { db } from '@/db';
-import { drafts, publishedPosts, users } from '@/db/schema';
+import { drafts, publishedPosts } from '@/db/schema';
 import { handler, ok, serverError } from '@/lib/api';
+import { defaultGuardrails } from '@/lib/guardrails';
+import { requireSecret } from '@/lib/secrets';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -17,9 +20,12 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest) {
   return handler(async () => {
-    const secret = process.env.CRON_SECRET;
-    const provided = request.headers.get('x-cron-secret') ?? request.nextUrl.searchParams.get('secret');
-    if (!secret || provided !== secret) return serverError('Unauthorized cron call.');
+    const guard = requireSecret(
+      request.headers.get('x-cron-secret') ?? request.nextUrl.searchParams.get('secret'),
+      process.env.CRON_SECRET,
+      'CRON_SECRET',
+    );
+    if (!guard.ok) return serverError(guard.error);
 
     const now = new Date();
     const due = await db
@@ -57,6 +63,11 @@ export async function POST(request: NextRequest) {
           flair: draft.flair,
         });
         if (!result.ok) throw new Error(result.error);
+        // A post without an id or permalink cannot be tracked later, so refuse
+        // to record it rather than writing a row we can never reconcile.
+        if (!result.redditId || !result.permalink) {
+          throw new Error('Publisher returned no reddit id or permalink.');
+        }
 
         await db
           .insert(publishedPosts)
@@ -85,9 +96,9 @@ export async function POST(request: NextRequest) {
         const state = {
           items: [{ ...itemFrom(draft), status: 'scheduled' } as ScheduledItem],
           history: [],
-          config: { minAuthenticityScore: 85, requireManualApproval: true, maxPostsPerDay: 3, maxPostsPerSubredditPerWeek: 1, blocklist: [], avoidCategories: [], maxCommentsPerDay: 30, cooldownHoursAfterRemoval: 72, requirePriorEngagement: true, minAccountAgeDays: 0 },
+          config: defaultGuardrails(),
         };
-        const failure = failItem(state, draft.id, (error as Error).message, { maxAttempts: 3 });
+        const failure = failItem(state, draft.id, safeErrorMessage(error), { maxAttempts: 3 });
         await db
           .update(drafts)
           .set({
@@ -99,10 +110,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    void users;
-    void inArray;
-    void claimItem;
-    void completeItem;
     return ok({ published, due: publishable.length });
   });
 }

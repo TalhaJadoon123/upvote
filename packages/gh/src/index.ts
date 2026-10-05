@@ -10,6 +10,7 @@
  * drafts a post for a typo fix trains the founder to ignore its queue.
  */
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import { sanitizeForPrompt } from '@upvote/core';
 import { z } from 'zod';
 import {
   ShippingMomentSchema,
@@ -559,9 +560,9 @@ export function momentFromWebhook(
       if (action !== 'published' && action !== 'released') {
         return { event, moment: null, skipped: 'draft_or_prerelease', detail: `release ${action}` };
       }
-      const body = (release.body ?? '').trim();
+      const body = sanitizeForPrompt(release.body ?? '', 4000);
       const files: string[] = [];
-      const subject = release.name?.trim() || release.tag_name;
+      const subject = sanitizeForPrompt(release.name?.trim() || release.tag_name, 300);
       return {
         event,
         moment: momentBase({
@@ -596,13 +597,13 @@ export function momentFromWebhook(
           detail: pr.merged_at ? 'merged without a shippable label' : 'closed unmerged',
         };
       }
-      const body = (pr.body ?? '').trim();
+      const body = sanitizeForPrompt(pr.body ?? '', 4000);
       return {
         event,
         moment: momentBase({
           kind: 'pr_merged',
           id: `pr_${repo.replace('/', '_')}_${pr.number}`,
-          title: pr.title,
+          title: sanitizeForPrompt(pr.title, 300),
           body,
           whatChanged: body || `merged ${pr.title}`,
           lesson: firstLessonLine(body),
@@ -625,14 +626,14 @@ export function momentFromWebhook(
         return { event, moment: null, skipped: 'trivial', detail: `issues ${action}` };
       }
       const issue = (payload.issue ?? {}) as GitHubIssue;
-      const body = (issue.body ?? '').trim();
+      const body = sanitizeForPrompt(issue.body ?? '', 4000);
       const isBug = (issue.labels ?? []).some((l) => /bug|defect/i.test(l.name));
       return {
         event,
         moment: momentBase({
           kind: 'issue_closed',
           id: `issue_${repo.replace('/', '_')}_${issue.number}`,
-          title: issue.title,
+          title: sanitizeForPrompt(issue.title, 300),
           body,
           whatChanged: isBug ? `fixed: ${issue.title}` : `closed: ${issue.title}`,
           lesson: firstLessonLine(body),

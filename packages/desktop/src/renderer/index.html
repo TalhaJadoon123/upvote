@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- Renderer is sandboxed: no inline scripts, no remote resources. -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'"
+    />
+    <title>Upvote</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="mark">▲</span>
+          <div>
+            <div class="brand-name">Upvote</div>
+            <div class="brand-tag">Ship code. We write the post.</div>
+          </div>
+        </div>
+
+        <nav class="nav">
+          <button class="nav-item is-active" data-view="drafts">Drafts</button>
+          <button class="nav-item" data-view="voice">Voice</button>
+          <button class="nav-item" data-view="calendar">Calendar</button>
+          <button class="nav-item" data-view="analytics">Analytics</button>
+          <button class="nav-item" data-view="settings">Settings</button>
+        </nav>
+
+        <div class="sidebar-foot" id="status-foot">Loading…</div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <h1 id="view-title">Drafts</h1>
+          <div class="topbar-right">
+            <span class="pill" id="plan-pill">pro</span>
+          </div>
+        </header>
+
+        <div class="scroll" id="view-root">
+          <section class="view" data-view="drafts">
+            <div class="card">
+              <h2>What did you ship?</h2>
+              <p class="muted">
+                Describe the last thing you shipped in your own words. Upvote turns it into five drafts,
+                scored against your voice.
+              </p>
+              <textarea
+                id="moment-input"
+                rows="3"
+                placeholder="shipped v2.4.0. the ingest retry loop no longer caches its own failures. lesson: when the clever optimization keeps firing it is usually the bug."
+              ></textarea>
+              <div class="row">
+                <button class="btn btn-primary" id="generate-btn">Generate drafts</button>
+                <span class="hint" id="generate-hint"></span>
+              </div>
+            </div>
+
+            <div id="draft-list" class="stack"></div>
+          </section>
+
+          <section class="view is-hidden" data-view="voice">
+            <div class="card">
+              <h2>Teach it your voice</h2>
+              <p class="muted">
+                Paste three or four things you have written. Separate them with a blank line. The CLI can
+                also read your Reddit history directly — this is for when you are not connected yet.
+              </p>
+              <textarea
+                id="voice-input"
+                rows="12"
+                placeholder="i rewrote the ingest layer last weekend. it should have taken an hour.&#10;&#10;the bug was a retry loop that cached its own failures. embarrassing."
+              ></textarea>
+              <div class="row">
+                <button class="btn btn-primary" id="train-btn">Train voice</button>
+                <span class="hint" id="voice-hint"></span>
+              </div>
+            </div>
+            <div id="voice-result" class="stack"></div>
+          </section>
+
+          <section class="view is-hidden" data-view="calendar">
+            <div class="card">
+              <h2>Next 14 days</h2>
+              <p class="muted">
+                One post per subreddit per week. Three per day. Manual approval always. Those limits are
+                the reason your account survives.
+              </p>
+            </div>
+            <div id="calendar-grid" class="calendar"></div>
+          </section>
+
+          <section class="view is-hidden" data-view="analytics">
+            <div id="analytics-root" class="stack"></div>
+          </section>
+
+          <section class="view is-hidden" data-view="settings">
+            <div class="card">
+              <h2>Connections</h2>
+              <p class="muted">
+                Posts are published from your own Reddit account. Upvote never posts from a shared one.
+              </p>
+              <label class="field">
+                <span>Product URL (for attribution links)</span>
+                <input id="product-url" type="url" placeholder="https://yourproduct.com" />
+              </label>
+              <label class="field">
+                <span>GitHub token (repo scope)</span>
+                <input id="gh-token" type="password" placeholder="ghp_..." />
+              </label>
+              <div class="row">
+                <button class="btn btn-primary" id="save-settings">Save</button>
+                <span class="hint" id="settings-hint"></span>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>Local git</h2>
+              <p class="muted">Find the shipping moment in a repo without connecting GitHub.</p>
+              <div class="row">
+                <button class="btn" id="git-sync">Scan current folder</button>
+                <span class="hint" id="git-hint"></span>
+              </div>
+            </div>
+
+            <div class="card">
+              <h2>About</h2>
+              <p class="muted" id="about-text"></p>
+              <p class="muted small" id="data-path"></p>
+            </div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <!-- Draft editor drawer -->
+    <div class="drawer is-hidden" id="drawer">
+      <div class="drawer-head">
+        <div>
+          <div class="drawer-title" id="drawer-title"></div>
+          <div class="drawer-meta" id="drawer-meta"></div>
+        </div>
+        <button class="btn btn-ghost" id="drawer-close">Close</button>
+      </div>
+      <div class="drawer-body">
+        <div class="drawer-col">
+          <label class="field">
+            <span>Title</span>
+            <input id="edit-title" type="text" />
+          </label>
+          <label class="field">
+            <span>Body</span>
+            <textarea id="edit-body" rows="16"></textarea>
+          </label>
+          <label class="field">
+            <span>First comment (you post this yourself)</span>
+            <textarea id="edit-comment" rows="3"></textarea>
+          </label>
+        </div>
+        <div class="drawer-col drawer-side">
+          <div class="score" id="score-block"></div>
+          <label class="field">
+            <span>Subreddit</span>
+            <input id="edit-subreddit" type="text" placeholder="programming" />
+          </label>
+          <div id="suggest-list" class="stack"></div>
+          <div class="stack">
+            <button class="btn btn-primary" id="approve-btn">Approve &amp; schedule</button>
+            <button class="btn" id="post-btn">Post now</button>
+          </div>
+          <p class="hint" id="drawer-hint"></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast is-hidden" id="toast"></div>
+
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.package.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM"],
+    "outDir": "dist",
+    // No rootDir: the desktop app typechecks the workspace packages it imports
+    // straight from source, so restricting rootDir to src/ would reject them.
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts"]
+}

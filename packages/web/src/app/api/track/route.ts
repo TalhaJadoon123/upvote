@@ -42,17 +42,46 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Only ever redirect to a destination we can prove is ours.
+    // `to=https://evil.example` on our own domain would be a phishing primitive,
+    // and this endpoint is linked from a public Reddit post.
     const destination = url.searchParams.get('to') ?? '/';
-    // Only redirect to an absolute URL we were explicitly given, never to a
-    // path that could bounce back into this endpoint.
-    const safe = destination.startsWith('http') ? destination : new URL('/', url.origin).toString();
-    const next = new URL(safe);
+    const next = safeRedirect(url, destination);
+
+    // Carry the campaign parameters through so the product's own analytics still
+    // see them, minus the click id which has done its job.
     for (const key of [...url.searchParams.keys()]) {
       if (key === 'to' || key === 'upv' || key === 'utm_term') continue;
       next.searchParams.set(key, url.searchParams.get(key) ?? '');
     }
     return NextResponse.redirect(next);
   });
+}
+
+/**
+ * Build a redirect target that cannot leave our infrastructure.
+ *
+ * Absolute URLs are only honoured when their hostname matches APP_URL or an
+ * explicitly configured product host. Everything else degrades to the app root.
+ */
+function safeRedirect(requestUrl: URL, destination: string): URL {
+  const self = new URL('/', requestUrl.origin);
+
+  let candidate: URL;
+  try {
+    // A relative destination is resolved against our own origin.
+    candidate = new URL(destination, requestUrl.origin);
+  } catch {
+    return self;
+  }
+  if (candidate.origin !== requestUrl.origin) return self;
+
+  const allowed = new Set<string>([requestUrl.hostname]);
+  const productHost = process.env.PRODUCT_ALLOWED_HOST;
+  if (productHost) allowed.add(productHost.toLowerCase());
+  if (!allowed.has(candidate.hostname.toLowerCase())) return self;
+
+  return candidate;
 }
 
 /** Explicit signup beacon, fired from the app when a user signs up. */

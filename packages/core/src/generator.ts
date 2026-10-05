@@ -25,6 +25,7 @@ import type {
   VoiceProfile,
 } from './types.js';
 import { contentId, clamp, round, shortId } from './utils.js';
+import { sanitizeForPrompt, sanitizeTitle } from './sanitize.js';
 import { GuardrailConfigSchema } from './types.js';
 
 export interface DraftGenerationOptions {
@@ -583,8 +584,9 @@ export async function suggestReply(
 
 /** Build a Shippable moment from free text - the manual draft entry point. */
 export function momentFromText(text: string, tags: string[] = []): ShippingMoment {
-  const lines = text.split(/\n+/).map((l) => l.trim()).filter(Boolean);
-  const title = lines[0]?.slice(0, 140) ?? text.slice(0, 140);
+  const cleaned = sanitizeForPrompt(text, 4000);
+  const lines = cleaned.split(/\n+/).map((l) => l.trim()).filter(Boolean);
+  const title = sanitizeTitle(lines[0] ?? cleaned, 140) || 'Untitled moment';
   const rest = lines.slice(1);
   const lessonIdx = rest.findIndex((l) => /^(lesson|takeaway|learned|so|turns out)\b/i.test(l));
   const lesson = lessonIdx >= 0 ? (rest[lessonIdx] ?? '').replace(/^(lesson|takeaway|learned|so|turns out)\s*:\s*/i, '') : '';

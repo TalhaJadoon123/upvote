@@ -3,6 +3,7 @@ import { and, desc, eq, gte, lte } from 'drizzle-orm';
 import { db } from '@/db';
 import { drafts, users } from '@/db/schema';
 import { handler, ok, serverError } from '@/lib/api';
+import { requireSecret } from '@/lib/secrets';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -15,9 +16,12 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest) {
   return handler(async () => {
-    const secret = process.env.CRON_SECRET;
-    const provided = request.headers.get('x-cron-secret') ?? request.nextUrl.searchParams.get('secret');
-    if (!secret || provided !== secret) return serverError('Unauthorized cron call.');
+    const guard = requireSecret(
+      request.headers.get('x-cron-secret') ?? request.nextUrl.searchParams.get('secret'),
+      process.env.CRON_SECRET,
+      'CRON_SECRET',
+    );
+    if (!guard.ok) return serverError(guard.error);
 
     const now = new Date();
     const since = new Date(now.getTime() - 24 * 60 * 60 * 1000);

@@ -1,0 +1,27 @@
+{
+  "name": "@upvote/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Upvote desktop app: the Reddit growth engine with a native UI.",
+  "type": "module",
+  "main": "./dist/main.js",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "pnpm build && electron .",
+    "dev": "pnpm build && electron . --dev",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@upvote/analytics": "workspace:*",
+    "@upvote/core": "workspace:*",
+    "@upvote/gh": "workspace:*",
+    "@upvote/reddit": "workspace:*",
+    "@upvote/scheduler": "workspace:*",
+    "@upvote/voice": "workspace:*"
+  },
+  "devDependencies": {
+    "electron": "^33.2.1",
+    "esbuild": "^0.24.2",
+    "typescript": "^5.7.2"
+  }
+}

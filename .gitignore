@@ -9,4 +9,6 @@ coverage/
 .DS_Store
 packages/docs/.next
 packages/docs/.source/
+packages/desktop/dist/
 *.tsbuildinfo
+packages/docs/source.generated.ts

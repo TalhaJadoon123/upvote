@@ -51,7 +51,7 @@ for a platform whose readers can smell marketing copy in a second sentence.
 ## Quick start
 
 ```bash
-git clone https://github.com/your-org/upvote
+git clone https://github.com/TalhaJadoon123/upvote
 cd upvote
 pnpm install
 
@@ -59,8 +59,23 @@ pnpm install
 pnpm upvote onboard "shipped the rewrite of my ingest layer"
 ```
 
-That's the whole setup. The CLI writes JSON to `~/.upvote/` and runs the generation engine
-locally. It works fully offline.
+That's the whole setup. The CLI writes JSON to `~/.upvote/` and runs the generation
+engine locally. It works fully offline.
+
+### Desktop app
+
+```bash
+pnpm --filter @upvote/desktop start
+```
+
+A native window with the same engine behind it: train your voice, generate drafts,
+edit them with a live voice score, approve and post, then read the analytics view.
+No server, no browser, no account.
+
+```bash
+pnpm --filter @upvote/desktop build   # bundle to packages/desktop/dist
+pnpm --filter @upvote/desktop typecheck
+```
 
 ### From the terminal
 
@@ -96,6 +111,7 @@ packages/
   scheduler   slot selection · queue · retry backoff · cooldowns · BullMQ (optional)
   analytics   performance · attribution · learning loop · weekly report
   cli         17 commands over a zero-setup local store
+  desktop     Electron GUI over the same engine (sandboxed renderer)
   web         Next.js 15 dashboard (Tailwind, shadcn/ui, Drizzle, Clerk, Stripe)
   docs        Fumadocs site
 ```
@@ -135,10 +151,11 @@ Enforced before every post, even with auto-posting enabled:
 
 ```bash
 pnpm install
-pnpm typecheck     # tsc across every library package + the apps
-pnpm test          # 298 unit tests
+pnpm typecheck     # every package, plus web and desktop
+pnpm test          # 363 unit tests
 pnpm lint
 pnpm build         # turbo build
+pnpm audit         # dependency advisories
 docker compose up -d postgres redis
 ```
 
@@ -153,11 +170,37 @@ Everything is optional except what the dashboard needs. See
 | `GITHUB_TOKEN` | read releases, commits, PRs |
 | `GITHUB_WEBHOOK_SECRET` | verify webhook signatures |
 | `REDDIT_CLIENT_ID` / `REDDIT_CLIENT_SECRET` | post as the founder |
+| `LEMON_SQUEEZY_WEBHOOK_SECRET` / `PADDLE_WEBHOOK_SECRET` | merchant-of-record billing |
+| `DEVTO_API_KEY` / `HASHNODE_ACCESS_TOKEN` | cross-posting |
 | `DATABASE_URL` | dashboard only |
 | `CLERK_SECRET_KEY` | dashboard auth |
 | `TOKEN_ENCRYPTION_KEY` | encrypts stored OAuth tokens (32 bytes) |
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | billing |
 | `CRON_SECRET` | protects `/api/cron/*` |
+
+Set `UPVOTE_OFFLINE=1` to force the deterministic composer even when a key exists.
+Tests do this automatically, so the suite never makes a billed network call.
+
+## Integrations
+
+| Integration | What it does | Needs |
+| --- | --- | --- |
+| GitHub | Releases, shippable PRs, closed bugs, local `git log` | token (webhooks optional) |
+| Reddit | OAuth, posting, metrics, comments, flair | app credentials |
+| Stripe / Lemon Squeezy / Paddle | Billing webhooks, all signature-verified | webhook secret |
+| dev.to / Hashnode | Cross-post an approved draft to developer audiences | API key / PAT |
+| Resend | Daily draft digest email | API key |
+| OpenAI / Anthropic / Ollama / any OpenAI-compatible endpoint | Draft generation | API key, optional |
+| Clerk | Dashboard auth | publishable + secret key |
+| Postgres / Redis | Dashboard state, BullMQ queue | connection strings |
+
+## Security
+
+OAuth tokens are encrypted at rest with AES-256-GCM, every webhook is
+signature-verified in constant time, untrusted text is sanitised before it reaches
+a model, and the desktop renderer is fully sandboxed. See
+[SECURITY.md](SECURITY.md) for the threat model, mitigations and the deliberate
+limitations.
 
 ## License
 
