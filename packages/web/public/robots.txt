@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+# Marketing pages are worth indexing; the dashboard is behind auth.
+Disallow: /dashboard
+Disallow: /onboarding
+Disallow: /api/

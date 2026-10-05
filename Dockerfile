@@ -36,7 +36,10 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/packages ./packages
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/packages/web/.next ./packages/web/.next
-COPY --from=builder /app/packages/web/public ./packages/web/public
+# public/ is required by the Next runtime; copy it only when it exists.
+RUN if [ -d /app/packages/web/public ]; then \
+      cp -r /app/packages/web/public /app/packages/web/public; \
+    fi
 COPY --from=builder /app/packages/web/next.config.mjs ./packages/web/next.config.mjs
 COPY --from=builder /app/packages/web/package.json ./packages/web/package.json
 
