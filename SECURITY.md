@@ -100,7 +100,9 @@ pnpm typecheck          # types across every package
 pnpm test               # 363 unit tests
 ```
 
-Current audit status: the critical vitest advisory (arbitrary file read via the
-UI server), the drizzle-orm SQL-injection advisory, and the vite/postcss/esbuild/
-image-size advisories are all resolved by pinning patched versions. The single
-remaining item is limitation 3 above.
+Current audit status: **17 advisories → 1.** The critical vitest advisory
+(arbitrary file read/execute via the UI server), the drizzle-orm SQL-injection
+advisory, the vite/postcss/esbuild/image-size advisories, and eight high-severity
+Electron use-after-free CVEs are all resolved by pinning patched versions. The
+single remaining item is limitation 3 above, which CI allows explicitly and by
+name.

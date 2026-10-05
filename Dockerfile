@@ -18,7 +18,6 @@ COPY packages/scheduler/package.json packages/scheduler/
 COPY packages/analytics/package.json packages/analytics/
 COPY packages/cli/package.json packages/cli/
 COPY packages/web/package.json packages/web/
-COPY packages/docs/package.json packages/docs/
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # ---- builder ----

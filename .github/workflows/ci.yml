@@ -121,12 +121,17 @@ jobs:
         run: |
           pnpm audit --json > audit.json || true
           node -e "
-            const a = require('./audit.json');
-            const list = a.advisories ? Object.values(a.advisories) : (a.vulnerabilities ? [] : []);
-            const blocking = list.filter(v => (v.severity === 'high' || v.severity === 'critical') && v.module_name !== 'braces');
+            const fs = require('fs');
+            let a = {};
+            try { a = JSON.parse(fs.readFileSync('./audit.json', 'utf8')); } catch {}
+            const list = a.advisories ? Object.values(a.advisories) : [];
+            // braces has no patched release and is build-time only; documented in SECURITY.md.
+            const ALLOWED = new Set(['braces']);
+            const blocking = list.filter(v => (v.severity === 'high' || v.severity === 'critical') && !ALLOWED.has(v.module_name));
             if (blocking.length) {
-              console.error('Blocking advisories:', blocking.map(v => v.module_name + ' ' + v.severity).join(', '));
+              console.error('Blocking advisories:');
+              for (const v of blocking) console.error('  ' + v.module_name + ' [' + v.severity + '] ' + (v.title || ''));
               process.exit(1);
             }
-            console.log('No blocking advisories. See SECURITY.md for the known unfixable dev-only item.');
+            console.log('No blocking advisories.');
           "

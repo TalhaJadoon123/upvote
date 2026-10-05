@@ -20,7 +20,7 @@
     "@upvote/voice": "workspace:*"
   },
   "devDependencies": {
-    "electron": "^33.2.1",
+    "electron": "^41.10.6",
     "esbuild": "^0.24.2",
     "typescript": "^5.7.2"
   }
