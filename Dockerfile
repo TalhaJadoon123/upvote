@@ -42,5 +42,10 @@ COPY --from=builder /app/packages/web/package.json ./packages/web/package.json
 USER nextjs
 EXPOSE 3000
 ENV PORT=3000
+# Liveness only. A readiness gate that depends on the database will pull every
+# container out of rotation when Postgres has a bad minute, which is a worse
+# outage than serving stale reads.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 WORKDIR /app/packages/web
 CMD ["pnpm", "start"]
