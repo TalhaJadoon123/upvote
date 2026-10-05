@@ -11,7 +11,7 @@ import {
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { drafts } from '@/db/schema';
-import { badRequest, handler, ok, rateLimit, serverError } from '@/lib/api';
+import { badRequest, handler, ok, rateLimit } from '@/lib/api';
 import { requireApiUser } from '@/lib/auth';
 
 export const runtime = 'nodejs';
@@ -109,5 +109,3 @@ export async function GET(request: NextRequest) {
     });
   });
 }
-
-export { serverError };

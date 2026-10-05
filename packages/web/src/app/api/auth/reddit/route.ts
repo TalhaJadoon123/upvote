@@ -74,31 +74,6 @@ export async function GET(request: NextRequest) {
   });
 }
 
-/** Load the founder's stored Reddit tokens for server-side calls. */
-export async function loadRedditConnection(userId: string) {
-  const [row] = await db
-    .select()
-    .from(connections)
-    .where(and(eq(connections.userId, userId), eq(connections.provider, 'reddit')))
-    .limit(1);
-  if (!row) return null;
-
-  const access = decryptTokens<{ accessToken: string }>(row.accessTokenEncrypted);
-  const refresh = row.refreshTokenEncrypted
-    ? decryptTokens<{ refreshToken: string }>(row.refreshTokenEncrypted)
-    : null;
-
-  return {
-    row,
-    tokens: {
-      accessToken: access.accessToken,
-      ...(refresh?.refreshToken ? { refreshToken: refresh.refreshToken } : {}),
-      obtainedAt: row.updatedAt.toISOString(),
-      ...(row.expiresAt ? { expiresIn: Math.max(60, Math.floor((row.expiresAt.getTime() - Date.now()) / 1000)) } : {}),
-    },
-  };
-}
-
 export async function POST(request: NextRequest) {
   return handler(async () => {
     const user = await requireApiUser();
@@ -110,8 +85,4 @@ export async function POST(request: NextRequest) {
       .where(and(eq(connections.userId, user.id), eq(connections.provider, 'reddit')));
     return ok({ disconnected: true });
   });
-}
-
-export async function DELETE() {
-  return serverError('Use POST with { action: "disconnect" }.');
 }

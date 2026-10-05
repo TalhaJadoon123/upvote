@@ -1,17 +1,10 @@
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { VoiceScore } from '@/components/voice-score';
 import { getDashboardData } from './actions';
 
 export const dynamic = 'force-dynamic';
-
-/** Colour a voice score the same way the meter does, in one place. */
-export function scoreTone(score: number, threshold = 85): string {
-  if (score >= 92) return 'text-emerald-600';
-  if (score >= threshold) return 'text-cyan-600';
-  if (score >= 75) return 'text-amber-600';
-  return 'text-red-600';
-}
 
 export default async function DraftsPage() {
   const { drafts, counts, profile, user } = await getDashboardData();
@@ -83,7 +76,7 @@ export default async function DraftsPage() {
                 >
                   {draft.status}
                 </Badge>
-                <span className={`ml-auto font-mono text-sm tabular-nums ${scoreTone(draft.authenticityScore)}`}>
+                <span className="ml-auto font-mono text-sm tabular-nums text-muted-foreground">
                   {draft.authenticityScore.toFixed(0)}
                 </span>
               </div>

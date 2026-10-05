@@ -66,6 +66,24 @@ jobs:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/upvote
           TOKEN_ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
 
+  desktop:
+    name: Desktop build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build desktop bundle
+        working-directory: packages/desktop
+        run: pnpm build
+
   docker:
     name: Docker image
     runs-on: ubuntu-latest
@@ -82,3 +100,33 @@ jobs:
           tags: upvote:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      # `braces` has no patched release and is build-time only (see SECURITY.md).
+      # Everything else must be clean.
+      - name: Audit high and critical advisories
+        run: |
+          pnpm audit --json > audit.json || true
+          node -e "
+            const a = require('./audit.json');
+            const list = a.advisories ? Object.values(a.advisories) : (a.vulnerabilities ? [] : []);
+            const blocking = list.filter(v => (v.severity === 'high' || v.severity === 'critical') && v.module_name !== 'braces');
+            if (blocking.length) {
+              console.error('Blocking advisories:', blocking.map(v => v.module_name + ' ' + v.severity).join(', '));
+              process.exit(1);
+            }
+            console.log('No blocking advisories. See SECURITY.md for the known unfixable dev-only item.');
+          "

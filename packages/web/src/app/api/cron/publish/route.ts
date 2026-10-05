@@ -6,6 +6,7 @@ import { db } from '@/db';
 import { drafts, publishedPosts } from '@/db/schema';
 import { handler, ok, serverError } from '@/lib/api';
 import { defaultGuardrails } from '@/lib/guardrails';
+import { getTransport } from '@/lib/publish-transport';
 import { requireSecret } from '@/lib/secrets';
 
 export const runtime = 'nodejs';
@@ -123,52 +124,5 @@ function itemFrom(draft: typeof drafts.$inferSelect): ScheduledItem {
     reason: 'cron',
     attempts: 0,
     status: 'scheduled',
-  };
-}
-
-export interface PublishResult {
-  ok: boolean;
-  redditId?: string;
-  permalink?: string;
-  trackedUrl?: string | null;
-  error?: string;
-}
-
-type Transport = (input: {
-  draftId: string;
-  subreddit: string;
-  title: string;
-  body: string;
-  flair: string;
-}) => Promise<PublishResult>;
-
-let transport: Transport | null = null;
-
-/**
- * Register the function that actually talks to Reddit.
- *
- * The web app deliberately does not hold Reddit tokens: publishing happens with
- * the founder's token, which lives with the CLI or with the publish worker. The
- * dashboard calls out to that worker over HTTP.
- */
-export function registerTransport(fn: Transport): void {
-  transport = fn;
-}
-
-function getTransport(): Transport | null {
-  if (transport) return transport;
-
-  const url = process.env.UPVOTE_REDDIT_PUBLISH_URL;
-  const token = process.env.UPVOTE_WORKER_TOKEN;
-  if (!url || !token) return null;
-
-  return async (input) => {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
-      body: JSON.stringify(input),
-    });
-    if (!response.ok) return { ok: false, error: `Worker returned ${response.status}` };
-    return (await response.json()) as PublishResult;
   };
 }
