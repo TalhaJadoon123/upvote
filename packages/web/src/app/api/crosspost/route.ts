@@ -5,6 +5,7 @@ import {
   createHashnodeClient,
   crossPostToAll,
   isValidSubredditName,
+  type CrossPostResult,
   type CrossPostTarget,
 } from '@upvote/core';
 import { and, eq } from 'drizzle-orm';
@@ -49,7 +50,10 @@ export async function POST(request: NextRequest) {
     }
 
     const requested = body.platforms?.length ? body.platforms : (['devto', 'hashnode'] as const);
-    const targets: Array<{ platform: 'devto' | 'hashnode'; client: { create: (t: CrossPostTarget) => Promise<unknown> } }> = [];
+    const targets: Array<{
+      platform: 'devto' | 'hashnode';
+      client: { create: (t: CrossPostTarget) => Promise<CrossPostResult> };
+    }> = [];
 
     if (requested.includes('devto')) {
       const apiKey = process.env.DEVTO_API_KEY;

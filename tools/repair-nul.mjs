@@ -4,7 +4,6 @@
  *
  * Run: node tools/repair-nul.mjs
  */
-/* eslint-disable */
 import fs from 'node:fs';
 import path from 'node:path';
 
