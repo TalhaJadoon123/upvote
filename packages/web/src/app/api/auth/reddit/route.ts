@@ -3,8 +3,8 @@ import { RedditClient } from '@upvote/reddit';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { connections } from '@/db/schema';
-import { decryptTokens, encryptTokens } from '@/lib/crypto';
-import { badRequest, handler, ok, serverError } from '@/lib/api';
+import { encryptTokens } from '@/lib/crypto';
+import { badRequest, handler, ok } from '@/lib/api';
 import { requireApiUser } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';

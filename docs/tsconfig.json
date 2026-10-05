@@ -1,0 +1,39 @@
+{
+  "extends": "../../tsconfig.package.json",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "ES2023"
+    ],
+    "incremental": true,
+    "types": [
+      "mdx",
+      "node"
+    ],
+    "paths": {
+      "@/*": [
+        "./app/*"
+      ]
+    },
+    "allowJs": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
+  },
+  "include": [
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "mdx-components.tsx",
+    "next-env.d.ts",
+    "source.config.ts",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "source.generated.ts"
+  ]
+}

@@ -113,8 +113,12 @@ packages/
   cli         17 commands over a zero-setup local store
   desktop     Electron GUI over the same engine (sandboxed renderer)
   web         Next.js 15 dashboard (Tailwind, shadcn/ui, Drizzle, Clerk, Stripe)
-  docs        Fumadocs site
 ```
+
+Documentation lives in [`docs/`](docs) as plain MDX. The Fumadocs app was removed
+from the workspace because `fumadocs-mdx@11` generates code for
+`fumadocs-core@15+` while the stack pins core v14 — see
+[`docs/README.md`](docs/README.md) for the version matrix and how to restore it.
 
 `core` is pure: no I/O, no clock of its own, no network. Every function takes its inputs
 and returns a result, which is why the whole pipeline is unit-testable and why the CLI

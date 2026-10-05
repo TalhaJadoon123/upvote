@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { VoiceScore } from '@/components/voice-score';
 import { getDashboardData } from './actions';
 
 export const dynamic = 'force-dynamic';

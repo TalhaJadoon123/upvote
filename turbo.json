@@ -1,26 +1,35 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "stream",
-  "globalDependencies": ["tsconfig.base.json"],
+  "globalDependencies": ["tsconfig.base.json", "tsconfig.package.json"],
+  "globalEnv": [
+    "NODE_ENV",
+    "UPVOTE_OFFLINE",
+    "DATABASE_URL",
+    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+    "CLERK_SECRET_KEY",
+    "TOKEN_ENCRYPTION_KEY"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+      "outputs": [".next/**", "dist/**", "!.next/cache/**"]
     },
     "typecheck": {
-      "dependsOn": ["^build"],
+      "dependsOn": [],
       "outputs": []
     },
     "test": {
-      "dependsOn": ["^build"],
-      "outputs": []
+      "dependsOn": [],
+      "outputs": ["coverage/**"]
     },
     "dev": {
       "cache": false,
       "persistent": true
     },
     "lint": {
-      "dependsOn": ["^build"]
+      "dependsOn": [],
+      "outputs": []
     }
   }
 }
