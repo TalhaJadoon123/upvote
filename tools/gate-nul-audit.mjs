@@ -14,7 +14,6 @@ import { execSync } from 'node:child_process';
 import vm from 'node:vm';
 
 const root = process.cwd();
-const NUL = String.fromCharCode(0);
 
 const tracked = execSync('git ls-files', { encoding: 'utf8' })
   .split('\n')

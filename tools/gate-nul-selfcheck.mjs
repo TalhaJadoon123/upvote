@@ -42,6 +42,8 @@ for (const c of cases) {
     fs.rmSync(p, { force: true });
     try {
       execSync('git rm --cached --quiet -- ' + JSON.stringify(p), { stdio: 'ignore' });
-    } catch {}
+    } catch {
+      // Never staged, so nothing to unstage. Fine.
+    }
   }
 }
