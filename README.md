@@ -89,7 +89,7 @@ pnpm upvote post d1_a2b3                        # publish, with your account
 pnpm upvote analyze                             # what worked, what to change
 ```
 
-Full reference: [`packages/docs/content/docs/cli.mdx`](packages/docs/content/docs/cli.mdx).
+Full reference: [`docs/content/docs/cli.mdx`](docs/content/docs/cli.mdx).
 
 ### The dashboard
 
@@ -99,6 +99,22 @@ docker compose up -d postgres
 pnpm --filter @upvote/web db:push
 pnpm --filter @upvote/web dev   # http://localhost:3000
 ```
+
+`db:push` is for local iteration only: it reconciles the live database straight
+from `schema.ts` and leaves no history. Anything you care about keeping should go
+through the committed migrations instead:
+
+```bash
+pnpm --filter @upvote/web db:migrate   # apply packages/web/drizzle/*.sql in order
+```
+
+Run that once per deploy, before the new code starts. The container does not
+migrate on startup, so a deploy that skips this step runs against the previous
+schema.
+
+The dashboard exposes `GET /api/health` for probes. It answers without touching
+the database, so use it as a liveness check; add `?deep=1` when you need a
+readiness check that fails if Postgres is unreachable.
 
 ## Architecture
 
